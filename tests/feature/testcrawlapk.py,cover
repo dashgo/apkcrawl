@@ -1,0 +1,53 @@
+  # -*- encoding=utf-8
+> '''
+> File: testcrawlapk.py
+> Author: Hunag Ronghua <huangronghua@ndoo.net>
+> Date: 2013-01-10 10:05
+> Description: apk爬虫 spiders测试
+> '''
+> import unittest2 as unittest
+> import apkcrawl.settings
+> from apkcrawl.spiders.searchs import *
+> from apkcrawl.tests import get_crawler, get_projectpath , get_crawler
+> import __future__ 
+  #from apkcrawl.spiders.searchs.apk91 import Apk91Spider
+  #from apkcrawl.spiders.searchs.hiapk import HiapkSpider
+  #from apkcrawl.spiders.searchs.myapp import MyappSpider
+  #from apkcrawl.spiders.searchs.anzhi import AnzhiSpider
+  
+> def it_is_empty( it ):
+!     for _ in it:
+!         return False
+!     return True
+  
+> class SpiderTest(unittest.TestCase):
+>     spider_class = Apk91Spider
+  
+> class Apk91CrawlSpiderTest(SpiderTest):
+>     """Apk91CrawlSpiderTest 测试apk爬虫处理"""
+>     spider_class = Apk91Spider
+  
+>     def test_crawl_searchapk(self):
+>         """docstring for test_crawl_searchapk"""
+>         spider = self.spider_class( self.spider_class.DOMAIN )
+>         self.assertEqual(spider.name, 'apk.91.com')
+  
+>         cnt = 0
+>         empty=True
+>         for _ in spider.start_urls:
+>             empty=False
+>             break
+>         self.assertFalse(empty)
+  
+>     def test_userkeyword_search(self):
+>         """docstring for test_userkeyword_search"""
+>         spider = self.spider_class( self.spider_class.DOMAIN , keyword=u"微信" )
+>         self.crawler = get_crawler( dict(apkcrawl.settings) )
+!         self.crawler.configuare
+!         self.crawler.install()
+!         start_requests = spider.start_requests()
+!         iters = self.crawler.crawl( spider , start_requests )
+  
+!         for i in iters:
+!             print i
+  

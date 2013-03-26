@@ -1,0 +1,115 @@
+import hashlib
+from collections import defaultdict
+from scrapy.contrib.pipeline.media import MediaPipeline
+from scrapy.exceptions import DropItem
+from scrapy.http import Request
+from scrapy import log
+
+from scrapy.http import Request
+from scrapy.utils.misc import md5sum
+from scrapy.exceptions import DropItem, NotConfigured, IgnoreRequest
+# Define your item pipelines here
+#
+# Don't forget to add your pipeline to the ITEM_PIPELINES setting
+# See: http://doc.scrapy.org/topics/item-pipeline.html
+
+class ApkPipeline(MediaPipeline):
+
+    def __init__(self, store_uri, download_func=None):
+        if not store_uri:
+            raise NotConfigured
+        self.store = self._get_store(store_uri)
+        super(ApkPipeline, self).__init__(download_func=download_func)
+
+    def _get_store(self, uri):
+        return FSStore(uri)
+
+    def _file_tmp_key(self, url):
+        return hashlib.sha1(url).hexdigest()
+
+    def get_media_requests(self, item , info ):
+        """@overwider"""
+        return [ Request( item['download_url'] 
+                , headers={'Referer':item['entry_url']}) ]
+
+    def file_downloaded(self,response,request,info):
+        key = self._file_tmp_key( request.url )
+        self.store.persist(key , response.body, info)
+
+    def media_downloaded(self, response, request, info):                        
+        """@overwider"""
+        referer = request.headers.get('Referer')
+
+        if response.status != 200:                                              
+            log.msg(format='File (code: %(status)s): Error downloading file from %(request)s referred in <%(referer)s>',
+                    level=log.WARNING, spider=info.spider,                      
+                    status=response.status, request=request, referer=referer)   
+            raise ImageException                                                
+
+        if not response.body:                                                   
+            log.msg(format='File (empty-content): Empty file from %(request)s referred in <%(referer)s>: no-content',
+                    level=log.WARNING, spider=info.spider,                      
+                    request=request, referer=referer)                           
+            raise ImageException                                                
+
+        status = 'cached' if 'cached' in response.flags else 'downloaded'       
+        log.msg(format='File (%(status)s): Downloaded file from %(request)s referred in <%(referer)s>',
+                level=log.DEBUG, spider=info.spider,                            
+                status=status, request=request, referer=referer)                
+        self.inc_stats(info.spider, status)                                     
+
+        try:                                                                    
+            key = self._file_tmp_key(request.url)                                   
+            self.file_downloaded(response, request, info)           
+            stat = self.store.stat( key , info)
+        except Exception, ex:                                              
+            log.err('file_downloaded hook failed: %s' % ex,                    
+                    level=log.WARNING, spider=info.spider)                      
+            raise                                                               
+
+        return {'url': request.url, 'path': key, 'checksum': checksum}
+
+    def inc_stats(self, spider, status):                                                                                                                                                                  
+        spider.crawler.stats.inc_value('file_count', spider=spider)            
+        spider.crawler.stats.inc_value('file_status_count/%s' % status, spider=spider)
+
+    def process_item(self, item, spider):
+        return item
+
+class FSStore(object):
+    """ Store Apk to location file system"""
+    def __init__(self, basedir ):
+        self.basedir = basedir
+        self._mkdir(self.basedir)
+        self.created_directories = defaultdict(set)
+
+    def move(self, new_abspath ):
+        self._mkdir(os.path.dirname(new_abspath),info)
+        #os.path.move
+        pass
+
+    def persist(self, key, fbody , info):
+        abs_path = self._get_filesystem_path(key)
+        self._mkdir(os.path.dirname(abs_path), info)
+        open(abs_path,'wb').write( fbody )
+
+    def stat(self, key , info):
+        abs_path = self._get_filesystem_path( key )
+        try:
+            last_modified = os.path.getmtime(abs_path)
+        except Exception, e:
+            return {}
+        with open(abs_path,'rb') as f:
+            checksum = md5sum(f)
+        return {'last_modified':last_modified, 'checksum':checksum}
+
+    def _get_filesystem_path(self, key):
+        path_comps = key.split('/')
+        return os.path.join(self.basedir , *path_comps)
+
+    def _mkdir(self, dirname, domain=None):                                                                                                                           |~                              
+        seen = self.created_directories[domain] if domain else set()                                                                                                  |~                              
+        if dirname not in seen:                                                                                                                                       |~                              
+            if not os.path.exists(dirname):                                                                                                                           |~                              
+                os.makedirs(dirname)                                                                                                                                  |~                              
+                seen.add(dirname)  
